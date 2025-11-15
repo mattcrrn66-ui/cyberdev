@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from "react";
-import { supabase } from "../lib/supabaseClient";
+import Link from "next/link";
+import { createClient } from "../lib/supabaseClient";
 
+const supabase = createClient();
 const BUCKET_NAME = "token-images";
 
 type TokenRow = {
@@ -544,136 +546,145 @@ export default function TokenHubPage() {
               }}
             >
               {tokens.map((t) => (
-                <div
+                <Link
                   key={t.id}
-                  style={{
-                    borderRadius: 12,
-                    border: "1px solid #1f2937",
-                    padding: 12,
-                    background: "#020617",
-                  }}
+                  href={`/tokens/${t.id}`}
+                  style={{ textDecoration: "none" }}
                 >
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      marginBottom: 8,
+                      borderRadius: 12,
+                      border: "1px solid #1f2937",
+                      padding: 12,
+                      background: "#020617",
+                      cursor: "pointer",
                     }}
                   >
-                    {t.image_url ? (
-                      <img
-                        src={t.image_url}
-                        alt={t.name || ""}
-                        style={{
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {t.image_url ? (
+                        <img
+                          src={t.image_url}
+                          alt={t.name || ""}
+                          style({
                           width: 40,
                           height: 40,
                           borderRadius: 999,
                           objectFit: "cover",
                           border: "1px solid #374151",
                         }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 999,
-                          border: "1px solid #374151",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 12,
-                          color: "#6b7280",
-                        }}
-                      >
-                        ?
-                      </div>
-                    )}
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 600,
-                          color: "#e5e7eb",
-                        }}
-                      >
-                        {t.name || "Unnamed"}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#9ca3af",
-                        }}
-                      >
-                        {t.symbol || "SYM"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "#9ca3af",
-                      marginBottom: 8,
-                      minHeight: 32,
-                    }}
-                  >
-                    {t.description || "No description provided."}
-                  </p>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 6,
-                      fontSize: 11,
-                    }}
-                  >
-                    {t.telegram_url && (
-                      <a
-                        href={t.telegram_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={linkPillStyle}
-                      >
-                        TG
-                      </a>
-                    )}
-                    {t.x_url && (
-                      <a
-                        href={t.x_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={linkPillStyle}
-                      >
-                        X
-                      </a>
-                    )}
-                    {t.website_url && (
-                      <a
-                        href={t.website_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={linkPillStyle}
-                      >
-                        Site
-                      </a>
-                    )}
-                    {!t.telegram_url &&
-                      !t.x_url &&
-                      !t.website_url && (
-                        <span
+                        />
+                      ) : (
+                        <div
                           style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 999,
+                            border: "1px solid #374151",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 12,
                             color: "#6b7280",
-                            fontSize: 11,
                           }}
                         >
-                          No links
-                        </span>
+                          ?
+                        </div>
                       )}
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: "#e5e7eb",
+                          }}
+                        >
+                          {t.name || "Unnamed"}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "#9ca3af",
+                          }}
+                        >
+                          {t.symbol || "SYM"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        marginBottom: 8,
+                        minHeight: 32,
+                      }}
+                    >
+                      {t.description || "No description provided."}
+                    </p>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        fontSize: 11,
+                      }}
+                    >
+                      {t.telegram_url && (
+                        <a
+                          href={t.telegram_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={linkPillStyle}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          TG
+                        </a>
+                      )}
+                      {t.x_url && (
+                        <a
+                          href={t.x_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={linkPillStyle}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          X
+                        </a>
+                      )}
+                      {t.website_url && (
+                        <a
+                          href={t.website_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={linkPillStyle}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Site
+                        </a>
+                      )}
+                      {!t.telegram_url &&
+                        !t.x_url &&
+                        !t.website_url && (
+                          <span
+                            style={{
+                              color: "#6b7280",
+                              fontSize: 11,
+                            }}
+                          >
+                            No links
+                          </span>
+                        )}
+                    </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
