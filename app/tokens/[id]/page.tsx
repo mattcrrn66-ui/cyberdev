@@ -9,14 +9,10 @@ interface TokenPageProps {
 
 const supabase = createClient();
 
-export default async function TokenPage({ params }: TokenPageProps) {
-  // This can be either a real DB id OR a symbol (like "CYDT")
-  const rawParam = params.id;
+async function fetchTokenByAnyKey(rawParam: string) {
   const tokenKey = decodeURIComponent(rawParam);
 
-  let token: any = null;
-
-  // 1) First try to find by ID
+  // 1) Try exact ID match
   const byId = await supabase
     .from("tokens")
     .select("*")
@@ -24,19 +20,39 @@ export default async function TokenPage({ params }: TokenPageProps) {
     .single();
 
   if (!byId.error && byId.data) {
-    token = byId.data;
-  } else {
-    // 2) Fallback: try to find by SYMBOL (uppercased)
-    const bySymbol = await supabase
-      .from("tokens")
-      .select("*")
-      .eq("symbol", tokenKey.toUpperCase())
-      .single();
-
-    if (!bySymbol.error && bySymbol.data) {
-      token = bySymbol.data;
-    }
+    return byId.data;
   }
+
+  // 2) Try exact SYMBOL match (case-insensitive)
+  const bySymbol = await supabase
+    .from("tokens")
+    .select("*")
+    .ilike("symbol", tokenKey);
+
+  if (!bySymbol.error && bySymbol.data && bySymbol.data.length > 0) {
+    return bySymbol.data[0];
+  }
+
+  // 3) Try NAME match (handle slugs like "cyber-dev-token")
+  const nameGuess = tokenKey.replace(/-/g, " ");
+
+  const byName = await supabase
+    .from("tokens")
+    .select("*")
+    .ilike("name", nameGuess);
+
+  if (!byName.error && byName.data && byName.data.length > 0) {
+    return byName.data[0];
+  }
+
+  // Nothing matched
+  return null;
+}
+
+export default async function TokenPage({ params }: TokenPageProps) {
+  const rawParam = params.id;
+
+  const token = await fetchTokenByAnyKey(rawParam);
 
   if (!token) {
     return (
