@@ -4,6 +4,7 @@ import React, { useState, useEffect, FormEvent } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { createClient } from "../lib/supabaseClient";
+import type { User } from "@supabase/supabase-js";
 
 const supabase = createClient();
 const BUCKET_NAME = "token-images";
@@ -21,6 +22,16 @@ type TokenRow = {
 };
 
 export default function TokenHubPage() {
+  // ---------- AUTH STATE ----------
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const [email, setEmail] = useState("");
+  const [sendingLink, setSendingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+
+  // ---------- TOKEN FORM STATE ----------
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [description, setDescription] = useState("");
@@ -37,7 +48,33 @@ export default function TokenHubPage() {
   const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [loadingTokens, setLoadingTokens] = useState(true);
 
-  // Fetch latest tokens
+  // ---------- LOAD AUTH STATE ----------
+  useEffect(() => {
+    const loadUser = async () => {
+      setAuthError(null);
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error(error);
+        setAuthError(error.message);
+      } else {
+        setUser(data.user ?? null);
+      }
+      setAuthChecked(true);
+    };
+
+    loadUser();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
+    });
+
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  // ---------- FETCH LATEST TOKENS ----------
   async function fetchTokens() {
     try {
       setLoadingTokens(true);
@@ -50,10 +87,11 @@ export default function TokenHubPage() {
       if (error) {
         console.error(error);
         setStatus("Error loading tokens: " + error.message);
+        setTokens([]);
         return;
       }
 
-      setTokens(data || []);
+      setTokens((data as TokenRow[]) || []);
     } finally {
       setLoadingTokens(false);
     }
@@ -63,6 +101,45 @@ export default function TokenHubPage() {
     fetchTokens();
   }, []);
 
+  // ---------- MAGIC LINK LOGIN ----------
+  async function handleSendMagicLink(e: FormEvent) {
+    e.preventDefault();
+    setAuthError(null);
+    setLinkSent(false);
+
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setAuthError("Please enter an email address.");
+      return;
+    }
+
+    setSendingLink(true);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmed,
+      options: {
+        emailRedirectTo:
+          typeof window !== "undefined" ? window.location.origin : undefined,
+      },
+    });
+
+    setSendingLink(false);
+
+    if (error) {
+      console.error(error);
+      setAuthError(error.message || "Failed to send login link.");
+      return;
+    }
+
+    setLinkSent(true);
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    setUser(null);
+  }
+
+  // ---------- IMAGE UPLOAD ----------
   async function uploadImage(file: File): Promise<string | null> {
     try {
       const ext = file.name.split(".").pop() || "png";
@@ -98,9 +175,17 @@ export default function TokenHubPage() {
     }
   }
 
+  // ---------- CREATE TOKEN ----------
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setStatus("");
+
+    // Extra safety: do not allow if not logged in
+    if (!user) {
+      setStatus("You must be logged in to create a token.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -178,7 +263,7 @@ export default function TokenHubPage() {
           gap: 24,
         }}
       >
-        {/* TOP: FORM + PREVIEW */}
+        {/* TOP: MAIN CARD (FORM + PREVIEW) */}
         <div
           style={{
             background: "#020617",
@@ -191,234 +276,380 @@ export default function TokenHubPage() {
             gap: 32,
           }}
         >
-          {/* LEFT: FORM */}
+          {/* LEFT: AUTH + FORM */}
           <div>
             <h1 style={{ fontSize: 26, marginBottom: 8 }}>
               Cyber Dev Token Hub
             </h1>
 
-            <p style={{ color: "#9ca3af", marginBottom: 20, fontSize: 14 }}>
+            <p style={{ color: "#9ca3af", marginBottom: 12, fontSize: 14 }}>
               Create your token profile below. Upload an image or paste a URL.
             </p>
 
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: 14 }}>
-                <label
+            {/* AUTH STATUS BAR */}
+            <div
+              style={{
+                marginBottom: 18,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                alignItems: "center",
+                fontSize: 12,
+              }}
+            >
+              {authChecked && user ? (
+                <>
+                  <span
+                    style={{
+                      borderRadius: 999,
+                      border: "1px solid rgba(16,185,129,0.5)",
+                      background: "rgba(6,95,70,0.4)",
+                      padding: "4px 10px",
+                      color: "#6ee7b7",
+                    }}
+                  >
+                    Logged in as{" "}
+                    <span style={{ fontFamily: "monospace" }}>
+                      {user.email || user.id.slice(0, 8)}
+                    </span>
+                  </span>
+                  <button
+                    onClick={handleSignOut}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#9ca3af",
+                      textDecoration: "underline",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <span
                   style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
+                    borderRadius: 999,
+                    border: "1px solid #374151",
+                    background: "#020617",
+                    padding: "4px 10px",
+                    color: "#e5e7eb",
                   }}
                 >
-                  Token Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
+                  Not logged in. Login required to create tokens.
+                </span>
+              )}
 
-              <div style={{ marginBottom: 14 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Symbol
-                </label>
-                <input
-                  type="text"
-                  value={symbol}
-                  onChange={(e) =>
-                    setSymbol(e.target.value.toUpperCase())
-                  }
-                  style={inputStyle}
-                />
-              </div>
+              {authError && (
+                <span style={{ color: "#f97373", fontSize: 11 }}>
+                  {authError}
+                </span>
+              )}
+            </div>
 
-              <div style={{ marginBottom: 14 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Description
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  style={{ ...inputStyle, resize: "vertical" }}
-                />
-              </div>
-
-              <p
+            {/* LOGIN UI WHEN LOGGED OUT */}
+            {!user && (
+              <div
                 style={{
-                  marginBottom: 8,
-                  marginTop: 16,
-                  color: "#e5e7eb",
-                  fontWeight: 600,
-                  fontSize: 14,
+                  borderRadius: 12,
+                  border: "1px solid #1f2937",
+                  background: "#020617",
+                  padding: 12,
+                  marginBottom: 16,
                 }}
               >
-                Token Image
-              </p>
-
-              <div style={{ marginBottom: 10 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Upload file (recommended)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setImageFile(e.target.files?.[0] ?? null)
-                  }
-                  style={{ color: "#e5e7eb", fontSize: 12 }}
-                />
-              </div>
-
-              <p
-                style={{
-                  textAlign: "center",
-                  margin: "10px 0",
-                  color: "#475569",
-                  fontSize: 12,
-                }}
-              >
-                — OR —
-              </p>
-
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Paste Image URL (optional)
-                </label>
-                <input
-                  type="text"
-                  value={manualImageUrl}
-                  onChange={(e) =>
-                    setManualImageUrl(e.target.value)
-                  }
-                  placeholder="https://example.com/image.png"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Telegram URL
-                </label>
-                <input
-                  type="text"
-                  value={telegramUrl}
-                  onChange={(e) =>
-                    setTelegramUrl(e.target.value)
-                  }
-                  placeholder="https://t.me/your_project"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
-                  }}
-                >
-                  X (Twitter) URL
-                </label>
-                <input
-                  type="text"
-                  value={xUrl}
-                  onChange={(e) => setXUrl(e.target.value)}
-                  placeholder="https://x.com/your_project"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 4,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Website URL
-                </label>
-                <input
-                  type="text"
-                  value={websiteUrl}
-                  onChange={(e) =>
-                    setWebsiteUrl(e.target.value)
-                  }
-                  placeholder="https://yourproject.xyz"
-                  style={inputStyle}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "10px 16px",
-                  borderRadius: 999,
-                  border: "none",
-                  cursor: loading ? "default" : "pointer",
-                  fontWeight: 600,
-                  background:
-                    "linear-gradient(135deg, #22c55e, #22d3ee 40%, #6366f1)",
-                  color: "white",
-                  opacity: loading ? 0.7 : 1,
-                }}
-              >
-                {loading ? "Creating..." : "Create Token Profile"}
-              </button>
-
-              {status && (
                 <p
                   style={{
-                    marginTop: 12,
-                    color: status.startsWith("✅")
-                      ? "#4ade80"
-                      : status.startsWith("Error") ||
-                        status.startsWith("Upload failed")
-                      ? "#f97373"
-                      : "#e5e7eb",
                     fontSize: 13,
+                    color: "#e5e7eb",
+                    marginBottom: 8,
+                    fontWeight: 500,
                   }}
                 >
-                  {status}
+                  Login to create a token
                 </p>
-              )}
-            </form>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    marginBottom: 10,
+                  }}
+                >
+                  Enter your email to receive a magic login link. Once you
+                  confirm it, return here and the token form will unlock.
+                </p>
+
+                <form
+                  onSubmit={handleSendMagicLink}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    style={inputStyle}
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingLink}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      border: "none",
+                      cursor: sendingLink ? "default" : "pointer",
+                      fontWeight: 600,
+                      background:
+                        "linear-gradient(135deg, #22c55e, #22d3ee 40%, #6366f1)",
+                      color: "white",
+                      opacity: sendingLink ? 0.7 : 1,
+                      fontSize: 13,
+                    }}
+                  >
+                    {sendingLink ? "Sending…" : "Send login link"}
+                  </button>
+                </form>
+
+                {linkSent && (
+                  <p
+                    style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      color: "#4ade80",
+                    }}
+                  >
+                    Login link sent. Check your email, click it, and then
+                    return to this page.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* TOKEN FORM - ONLY WHEN LOGGED IN */}
+            {user && (
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: 14 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Token Name
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Symbol
+                  </label>
+                  <input
+                    type="text"
+                    value={symbol}
+                    onChange={(e) =>
+                      setSymbol(e.target.value.toUpperCase())
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    style={{ ...inputStyle, resize: "vertical" }}
+                  />
+                </div>
+
+                <p
+                  style={{
+                    marginBottom: 8,
+                    marginTop: 16,
+                    color: "#e5e7eb",
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  Token Image
+                </p>
+
+                <div style={{ marginBottom: 10 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Upload file (recommended)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      setImageFile(e.target.files?.[0] ?? null)
+                    }
+                    style={{ color: "#e5e7eb", fontSize: 12 }}
+                  />
+                </div>
+
+                <p
+                  style={{
+                    textAlign: "center",
+                    margin: "10px 0",
+                    color: "#475569",
+                    fontSize: 12,
+                  }}
+                >
+                  — OR —
+                </p>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Paste Image URL (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={manualImageUrl}
+                    onChange={(e) =>
+                      setManualImageUrl(e.target.value)
+                    }
+                    placeholder="https://example.com/image.png"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Telegram URL
+                  </label>
+                  <input
+                    type="text"
+                    value={telegramUrl}
+                    onChange={(e) =>
+                      setTelegramUrl(e.target.value)
+                    }
+                    placeholder="https://t.me/your_project"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    X (Twitter) URL
+                  </label>
+                  <input
+                    type="text"
+                    value={xUrl}
+                    onChange={(e) => setXUrl(e.target.value)}
+                    placeholder="https://x.com/your_project"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Website URL
+                  </label>
+                  <input
+                    type="text"
+                    value={websiteUrl}
+                    onChange={(e) =>
+                      setWebsiteUrl(e.target.value)
+                    }
+                    placeholder="https://yourproject.xyz"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    width: "100%",
+                    padding: "10px 16px",
+                    borderRadius: 999,
+                    border: "none",
+                    cursor: loading ? "default" : "pointer",
+                    fontWeight: 600,
+                    background:
+                      "linear-gradient(135deg, #22c55e, #22d3ee 40%, #6366f1)",
+                    color: "white",
+                    opacity: loading ? 0.7 : 1,
+                  }}
+                >
+                  {loading ? "Creating..." : "Create Token Profile"}
+                </button>
+              </form>
+            )}
+
+            {status && (
+              <p
+                style={{
+                  marginTop: 12,
+                  color: status.startsWith("✅")
+                    ? "#4ade80"
+                    : status.startsWith("Error") ||
+                      status.startsWith("Upload failed")
+                    ? "#f97373"
+                    : "#e5e7eb",
+                  fontSize: 13,
+                }}
+              >
+                {status}
+              </p>
+            )}
           </div>
 
           {/* RIGHT: LIVE PREVIEW */}
@@ -522,15 +753,33 @@ export default function TokenHubPage() {
             border: "1px solid #1f2937",
           }}
         >
-          <h2
+          <div
             style={{
-              fontSize: 18,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: 12,
-              color: "#e5e7eb",
             }}
           >
-            Latest Tokens
-          </h2>
+            <h2
+              style={{
+                fontSize: 18,
+                color: "#e5e7eb",
+              }}
+            >
+              Latest Tokens
+            </h2>
+            <Link
+              href="/directory"
+              style={{
+                fontSize: 12,
+                color: "#22d3ee",
+                textDecoration: "underline",
+              }}
+            >
+              View full directory →
+            </Link>
+          </div>
 
           {loadingTokens ? (
             <p style={{ color: "#9ca3af", fontSize: 13 }}>Loading...</p>
@@ -542,7 +791,8 @@ export default function TokenHubPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: 16,
               }}
             >
