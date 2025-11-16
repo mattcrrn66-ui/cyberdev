@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import TokenPortal from "@/components/TokenPortal";
 
@@ -18,14 +19,16 @@ type Token = {
   created_at: string;
 };
 
-interface TokenPageProps {
-  params: { id: string };
-}
-
 const supabase = createClient();
 
-export default function TokenPage({ params }: TokenPageProps) {
-  const tokenId = decodeURIComponent(params.id);
+export default function TokenPage() {
+  // ✅ Get [id] from the URL correctly in a client component
+  const params = useParams();
+  const rawId = params?.id;
+
+  // Handle both string and string[] just in case
+  const tokenId =
+    typeof rawId === "string" ? decodeURIComponent(rawId) : Array.isArray(rawId) ? decodeURIComponent(rawId[0]) : "";
 
   const [token, setToken] = useState<Token | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,12 @@ export default function TokenPage({ params }: TokenPageProps) {
 
   useEffect(() => {
     const fetchToken = async () => {
+      if (!tokenId) {
+        setError("Missing token id in URL.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
