@@ -15,9 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-slate-950 text-slate-100">
-        {/* Site Shell */}
         <div className="min-h-screen flex flex-col">
-
           {/* Header / Nav */}
           <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
             <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
@@ -55,12 +53,12 @@ export default function RootLayout({
             </div>
           </header>
 
-          {/* Page content */}
+          {/* Page Content */}
           <main className="flex-1">
             {children}
           </main>
 
-          {/* Footer (simple) */}
+          {/* Footer */}
           <footer className="border-t border-slate-800 mt-8">
             <div className="max-w-5xl mx-auto px-4 py-4 text-xs text-slate-500 flex justify-between">
               <span>© {new Date().getFullYear()} Cyber Dev Token · $CDT</span>
