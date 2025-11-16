@@ -1,165 +1,134 @@
-"use client";
-
-import { useEffect, useState, FormEvent } from "react";
+// app/tokens/[id]/page.tsx
+import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
+import TokenPortal from "@/components/TokenPortal";
+
+interface TokenPageProps {
+  params: { id: string };
+}
 
 const supabase = createClient();
 
-interface TokenPortalProps {
-  tokenId: string;
-}
+export default async function TokenPage({ params }: TokenPageProps) {
+  const tokenId = params.id;
 
-type PortalMessage = {
-  id: string;
-  token_id: string;
-  role: string | null;
-  handle: string | null;
-  display_name: string | null;
-  message: string;
-  created_at: string;
-};
+  const { data: token, error } = await supabase
+    .from("tokens")
+    .select("*")
+    .eq("id", tokenId)
+    .single();
 
-export default function TokenPortal({ tokenId }: TokenPortalProps) {
-  const [displayName, setDisplayName] = useState("");
-  const [handle, setHandle] = useState("");
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<PortalMessage[]>([]);
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  async function fetchMessages() {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("token_portal_messages")
-      .select("*")
-      .eq("token_id", tokenId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (error) {
-      console.error(error);
-      setStatus("Error loading messages: " + error.message);
-    } else {
-      setMessages(data || []);
-    }
-
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    fetchMessages();
-  }, [tokenId]);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setStatus("");
-
-    if (!message.trim()) {
-      setStatus("Message cannot be empty.");
-      return;
-    }
-
-    const name = displayName.trim() || "Anon";
-    const userHandle = handle.trim() || null;
-
-    const { data, error } = await supabase
-      .from("token_portal_messages")
-      .insert({
-        token_id: tokenId,
-        display_name: name,
-        handle: userHandle,
-        role: "holder",
-        message: message.trim(),
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error(error);
-      setStatus("Error posting message: " + error.message);
-      return;
-    }
-
-    setMessages((prev) => [data as PortalMessage, ...prev]);
-    setMessage("");
-    if (!displayName.trim()) setDisplayName("Anon");
-    setStatus("Message posted.");
+  if (error || !token) {
+    console.error(error);
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <p className="text-lg font-semibold">Token not found.</p>
+          <Link
+            href="/"
+            className="text-sm text-cyan-400 hover:text-cyan-300 underline"
+          >
+            ← Back to Cyber Dev Hub
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <section className="border border-slate-800 rounded-xl p-4 sm:p-6 bg-slate-900/60">
-      <h2 className="text-xl sm:text-2xl font-semibold mb-3">
-        Community Portal
-      </h2>
-
-      <form onSubmit={handleSubmit} className="space-y-3 mb-6">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            placeholder="Display name"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full sm:w-1/3 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none focus:border-cyan-400"
-          />
-          <input
-            type="text"
-            placeholder="@handle (optional)"
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            className="w-full sm:w-1/3 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none focus:border-cyan-400"
-          />
-
-          <textarea
-            placeholder="Message…"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={2}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm outline-none focus:border-cyan-400"
-          />
+    <main className="min-h-screen bg-slate-950 text-slate-50">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        {/* Back link */}
+        <div className="text-sm">
+          <Link
+            href="/"
+            className="text-cyan-400 hover:text-cyan-300 underline"
+          >
+            ← Back to Cyber Dev Hub
+          </Link>{" "}
+          <span className="text-slate-500">/</span>{" "}
+          <Link
+            href="/tokens"
+            className="text-cyan-400 hover:text-cyan-300 underline"
+          >
+            Directory
+          </Link>
         </div>
 
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-indigo-500 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          Post message
-        </button>
-        {status && <p className="text-xs text-slate-300">{status}</p>}
-      </form>
-
-      {/* Messages */}
-      <div className="space-y-3 max-h-96 overflow-y-auto">
-        {loading ? (
-          <p className="text-sm text-slate-400">Loading messages…</p>
-        ) : messages.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No messages yet. Start the conversation.
-          </p>
-        ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-cyan-300">
-                  {m.display_name || "Anon"}
-                  {m.handle && (
-                    <span className="text-slate-500 ml-1">{m.handle}</span>
-                  )}
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  {new Date(m.created_at).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-sm text-slate-100 whitespace-pre-wrap mt-1">
-                {m.message}
+        {/* Token header */}
+        <section className="border border-slate-800 rounded-xl p-4 sm:p-6 bg-slate-900/60 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-cyan-400 mb-1">
+              Cyber Dev Token • Portal
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+              {token.name}{" "}
+              <span className="text-cyan-300 text-lg">({token.symbol})</span>
+            </h1>
+            {token.description && (
+              <p className="text-slate-300 text-sm sm:text-base max-w-xl">
+                {token.description}
               </p>
+            )}
+          </div>
+
+          {token.image_url && (
+            <div className="flex-shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={token.image_url}
+                alt={token.name || ""}
+                className="w-20 h-20 rounded-2xl border border-slate-700 object-cover"
+              />
             </div>
-          ))
-        )}
+          )}
+        </section>
+
+        {/* Links */}
+        <section className="border border-slate-800 rounded-xl p-4 sm:p-6 bg-slate-900/60">
+          <h2 className="text-lg font-semibold mb-3">Links</h2>
+          <div className="flex flex-wrap gap-3 text-sm text-slate-300">
+            {token.website_url && (
+              <a
+                href={token.website_url}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1 rounded-full border border-slate-700 hover:border-cyan-400 hover:text-cyan-300 transition"
+              >
+                Website
+              </a>
+            )}
+            {token.x_url && (
+              <a
+                href={token.x_url}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1 rounded-full border border-slate-700 hover:border-cyan-400 hover:text-cyan-300 transition"
+              >
+                X (Twitter)
+              </a>
+            )}
+            {token.telegram_url && (
+              <a
+                href={token.telegram_url}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1 rounded-full border border-slate-700 hover:border-cyan-400 hover:text-cyan-300 transition"
+              >
+                Telegram
+              </a>
+            )}
+            {!token.website_url && !token.x_url && !token.telegram_url && (
+              <p className="text-slate-500 text-sm">
+                No links have been added for this token yet.
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* Community Portal */}
+        <TokenPortal tokenId={tokenId} />
       </div>
-    </section>
+    </main>
   );
 }
