@@ -1,54 +1,73 @@
-// This component should ideally be placed in a shared components folder, e.g., components/Navbar.tsx
+// app/layout.tsx
+import "./globals.css";
+import type { Metadata } from "next";
 
-import Link from 'next/link';
+export const metadata: Metadata = {
+  title: "Cyber Dev Token • $CDT",
+  description: "Building tools for creators, devs & communities on Solana.",
+};
 
-// Define the navigation items in a reusable array for cleaner code
-const NAV_ITEMS = [
-  { href: "/", label: "Home" },
-  { href: "/live-tokens", label: "Live Tokens" },
-  { href: "/directory", label: "Directory" },
-  { href: "/dev-hub", label: "Dev Hub" },
-  { href: "/community", label: "Community" },
-  { href: "/whitepaper", label: "Whitepaper" },
-  { href: "/roadmap", label: "Roadmap" },
-];
-
-// Assuming this navigation is part of a larger header component
-export default function CyberDevNav() {
-  // We're omitting the mobile menu toggle logic here for brevity, 
-  // focusing on the desktop navigation structure.
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    // <nav> tag is the correct semantic element for navigation
-    <nav className="hidden lg:flex items-center space-x-6 text-sm">
-      {NAV_ITEMS.map((item) => (
-        <Link 
-          key={item.href} 
-          href={item.href} 
-          // Use a utility function or state to determine if this link is currently active 
-          // and apply the 'text-cyan-400' class for the active link.
-          // For simplicity here, we assume no active state logic.
-          className="text-slate-300 font-medium tracking-wide 
-                     hover:text-cyan-400 
-                     transition duration-200 
-                     p-2 -m-2 rounded-lg" // Added padding for a larger click area
-        >
-          {item.label}
-        </Link>
-      ))}
-    </nav>
+    <html lang="en">
+      <body className="bg-slate-950 text-slate-100">
+        <div className="min-h-screen flex flex-col">
+          {/* Header / Nav */}
+          <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+            <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+              {/* Brand */}
+              <a href="/" className="flex items-baseline gap-2">
+                <span className="text-xs uppercase tracking-[0.25em] text-cyan-400">
+                  Cyber Dev
+                </span>
+                <span className="text-xs font-medium text-slate-400">
+                  Token • $CDT
+                </span>
+              </a>
 
-    // --- You would typically wrap this in a full <header> element ---
-    /*
-    <header className="bg-slate-950/90 backdrop-blur-sm sticky top-0 z-50 shadow-lg border-b border-slate-800">
-      <div className="container mx-auto flex justify-between items-center h-16 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="text-xl font-bold text-white">
-          CyberDevToken
-        </Link>
-        <CyberDevNav /> 
-        // Mobile Menu Button (omitted)
-      </div>
-    </header>
-    */
+              {/* Nav */}
+              <nav className="flex items-center gap-4 text-sm text-slate-300">
+                <a href="/" className="hover:text-cyan-300">
+                  Home
+                </a>
+                <a href="/live-tokens" className="hover:text-cyan-300">
+                  Live Tokens
+                </a>
+                <a href="/directory" className="hover:text-cyan-300">
+                  Directory
+                </a>
+                <a href="/dev-hub" className="hover:text-cyan-300">
+                  Dev Hub
+                </a>
+                <a href="/community" className="hover:text-cyan-300">
+                  Community
+                </a>
+                <a href="/whitepaper" className="hover:text-cyan-300">
+                  Whitepaper
+                </a>
+                <a href="/roadmap" className="hover:text-cyan-300">
+                  Roadmap
+                </a>
+              </nav>
+            </div>
+          </header>
+
+          {/* Page content */}
+          <main className="flex-1">{children}</main>
+
+          {/* Footer */}
+          <footer className="border-t border-slate-800 bg-slate-950/90">
+            <div className="max-w-5xl mx-auto px-4 py-3 text-xs text-slate-500 flex flex-wrap gap-2 justify-between">
+              <span>© 2024 Cyber Dev Token</span>
+              <span>Roundtable for builders on Solana.</span>
+            </div>
+          </footer>
+        </div>
+      </body>
+    </html>
   );
 }
