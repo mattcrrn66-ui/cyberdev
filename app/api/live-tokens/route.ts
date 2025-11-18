@@ -5,7 +5,7 @@ type LiveToken = {
   id: string;
   name: string;
   symbol: string;
-  priceUsd: string | null;
+  priceUsd: number | null;
   volume24h: number | null;
   liquidityUsd: number | null;
   url: string | null;
@@ -14,52 +14,71 @@ type LiveToken = {
   socials: { platform: string; handle: string }[];
 };
 
+async function fetchFeed(url: string) {
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return { pairs: [] };
+    const data = await res.json();
+    return data;
+  } catch {
+    return { pairs: [] };
+  }
+}
+
 export async function GET() {
   try {
-    // Fetch all Solana pairs
-    const res = await fetch(
-      "https://api.dexscreener.com/latest/dex/pairs/solana",
-      {
-        next: { revalidate: 30 },
-      }
-    );
+    // Fetch 3 different Solana feeds
+    const urls = [
+      "https://api.dexscreener.io/latest/dex/tokens?chain=solana",
+      "https://api.dexscreener.io/latest/dex/pairs/solana",
+      "https://api.dexscreener.io/latest/dex/pairs/solana?type=new",
+    ];
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch Solana tokens" },
-        { status: 500 }
-      );
+    const responses = await Promise.all(urls.map((u) => fetchFeed(u)));
+
+    // Flatten + extract pairs
+    const allPairs = [
+      ...(responses[0]?.pairs || []),
+      ...(responses[1]?.pairs || []),
+      ...(responses[2]?.pairs || []),
+    ];
+
+    // Deduplicate by pairAddress
+    const map = new Map<string, any>();
+    for (const p of allPairs) {
+      if (p?.pairAddress) map.set(p.pairAddress, p);
     }
 
-    const body = await res.json();
-    const pairs: any[] = Array.isArray(body.pairs) ? body.pairs : [];
+    const unique = Array.from(map.values());
 
-    // Map Dexscreener -> our LiveToken format
-    const mapped: LiveToken[] = pairs.map((p) => ({
+    // Convert to LiveToken format
+    const mapped: LiveToken[] = unique.map((p: any) => ({
       id: p.pairAddress,
       name: p.baseToken?.name ?? "Unknown",
       symbol: p.baseToken?.symbol ?? "",
-      priceUsd: p.priceUsd ?? null,
+      priceUsd: p.priceUsd ? Number(p.priceUsd) : null,
       volume24h: p.volume?.h24 ?? null,
       liquidityUsd: p.liquidity?.usd ?? null,
       url: p.url ?? null,
-      imageUrl: p.info?.imageUrl ?? null,
+      imageUrl: p.baseToken?.logoURI ?? p.info?.imageUrl ?? null,
       website: p.info?.websites?.[0]?.url ?? null,
       socials: p.info?.socials ?? [],
     }));
 
-    // Sort with explicit types so TS shuts up
+    // Sort by liquidity desc
     mapped.sort(
-      (a: LiveToken, b: LiveToken) =>
-        (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0)
+      (a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0)
     );
 
-    // Top 50
-    const top50 = mapped.slice(0, 50);
+    // Top 100
+    const top100 = mapped.slice(0, 100);
 
-    return NextResponse.json(top50);
+    return NextResponse.json(top100, {
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (err) {
-    console.error("live-tokens API error:", err);
+    console.error("live-tokens API ERROR:", err);
     return NextResponse.json(
       { error: "Unexpected server error" },
       { status: 500 }
