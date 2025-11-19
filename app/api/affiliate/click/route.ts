@@ -1,46 +1,54 @@
-// components/AffiliateInitializer.tsx
-"use client";
+// app/api/affiliate/click/route.ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabaseClient";
 
-import { useEffect } from "react";
-import { useEnsureAffiliateRow } from "@/lib/useEnsureAffiliate";
+const supabase = createClient();
 
-export default function AffiliateInitializer() {
-  useEnsureAffiliateRow();
+export const POST = async (req: NextRequest) => {
+  try {
+    const body = await req.json();
+    const { affiliate_code, source } = body as {
+      affiliate_code?: string;
+      source?: string;
+    };
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("ref");
-
-    if (!ref) return;
-
-    // Avoid logging the same ref multiple times in this browser session
-    const alreadyLogged = sessionStorage.getItem("loggedRefCode");
-    if (alreadyLogged === ref) return;
-
-    sessionStorage.setItem("loggedRefCode", ref);
-
-    try {
-      // Store for future conversion events
-      localStorage.setItem("affiliate_ref_code", ref);
-      document.cookie = `affiliate_ref_code=${ref}; path=/; max-age=${
-        60 * 60 * 24 * 30
-      }`;
-    } catch (e) {
-      console.warn("Could not persist affiliate ref code:", e);
+    if (!affiliate_code) {
+      return NextResponse.json(
+        { error: "Missing affiliate_code" },
+        { status: 400 }
+      );
     }
 
-    // Fire-and-forget logging of the click
-    fetch("/api/affiliate/click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        affiliate_code: ref,
-        source: "site_visit",
-      }),
-    }).catch((err) => console.error("Error logging affiliate click:", err));
-  }, []);
+    const ipHeader =
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
 
-  return null;
-}
+    const ip = ipHeader.split(",")[0].trim();
+    const ua = req.headers.get("user-agent") || "unknown";
+
+    const { error } = await supabase.from("affiliate_clicks").insert({
+      affiliate_code,
+      source: source || "site_visit",
+      ip_address: ip,
+      user_agent: ua,
+    });
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return NextResponse.json(
+        { error: "Database insert failed" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Click logging error:", err);
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
+  }
+};
