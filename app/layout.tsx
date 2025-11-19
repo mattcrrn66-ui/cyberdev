@@ -19,7 +19,6 @@ export default function RootLayout({
           {/* Header / Nav */}
           <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
             <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-              
               {/* Brand */}
               <a href="/" className="flex items-baseline gap-2">
                 <span className="text-xs uppercase tracking-[0.25em] text-cyan-400">
@@ -35,9 +34,7 @@ export default function RootLayout({
                 <a href="/" className="hover:text-cyan-300">
                   Home
                 </a>
-                <a href="/live-tokens" className="hover:text-cyan-300">
-                  Live Tokens
-                </a>
+                {/* Live Tokens removed for now */}
                 <a href="/directory" className="hover:text-cyan-300">
                   Directory
                 </a>
@@ -53,10 +50,8 @@ export default function RootLayout({
                 <a href="/roadmap" className="hover:text-cyan-300">
                   Roadmap
                 </a>
-
-                {/* NEW: Meme Launchpad */}
                 <a href="/meme-launchpad" className="hover:text-cyan-300">
-                  Meme Launchpad
+                  Launch Token
                 </a>
               </nav>
             </div>
