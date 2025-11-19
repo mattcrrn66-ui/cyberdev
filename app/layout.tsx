@@ -1,6 +1,7 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
+import AffiliateInitializer from "@/components/AffiliateInitializer";
 
 export const metadata: Metadata = {
   title: "Cyber Dev Token • $CDT",
@@ -15,6 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-slate-950 text-slate-100">
+        {/* 🔥 Automatically ensures every logged-in user gets an affiliate_code */}
+        <AffiliateInitializer />
+
         <div className="min-h-screen flex flex-col">
           {/* Header / Nav */}
           <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
@@ -34,7 +38,6 @@ export default function RootLayout({
                 <a href="/" className="hover:text-cyan-300">
                   Home
                 </a>
-                {/* Live Tokens removed for now */}
                 <a href="/directory" className="hover:text-cyan-300">
                   Directory
                 </a>
@@ -52,6 +55,9 @@ export default function RootLayout({
                 </a>
                 <a href="/meme-launchpad" className="hover:text-cyan-300">
                   Launch Token
+                </a>
+                <a href="/dashboard/affiliate" className="hover:text-cyan-300">
+                  Affiliate
                 </a>
               </nav>
             </div>
