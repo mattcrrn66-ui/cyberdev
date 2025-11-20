@@ -1,53 +1,68 @@
-// components/AffiliateInitializer.tsx
 "use client";
 
 import { useEffect } from "react";
-import { useEnsureAffiliateRow } from "@/lib/useEnsureAffiliate";
+import { useSearchParams } from "next/navigation";
 
 export default function AffiliateInitializer() {
-  useEnsureAffiliateRow();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("ref");
-
-    if (!ref) return;
-
-    const alreadyLogged = sessionStorage.getItem("loggedRefCode");
-    if (alreadyLogged === ref) return;
-
-    sessionStorage.setItem("loggedRefCode", ref);
-
-    try {
-      localStorage.setItem("affiliate_ref_code", ref);
-      document.cookie = `affiliate_ref_code=${ref}; path=/; max-age=${
-        60 * 60 * 24 * 30
-      }`;
-    } catch (e) {
-      console.warn("Could not persist affiliate ref code:", e);
+    const refFromUrl = searchParams.get("ref");
+    if (!refFromUrl) {
+      console.log("[AffiliateInitializer] No ref param in URL");
+      return;
     }
 
-    // DEBUG: show what the API sends back
-    fetch("/api/affiliate/click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        affiliate_code: ref,
-        source: "site_visit",
-      }),
-    })
-      .then(async (res) => {
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          console.error("Affiliate click failed:", res.status, json);
-        } else {
-          console.log("Affiliate click logged:", json);
+    console.log("[AffiliateInitializer] ref param found:", refFromUrl);
+
+    // Store in localStorage + cookie
+    try {
+      const existing = window.localStorage.getItem("affiliate_code");
+      if (existing !== refFromUrl) {
+        window.localStorage.setItem("affiliate_code", refFromUrl);
+        document.cookie = `affiliate_code=${refFromUrl};path=/;max-age=${
+          60 * 60 * 24 * 30
+        }`;
+        console.log("[AffiliateInitializer] Stored affiliate_code in storage");
+      } else {
+        console.log("[AffiliateInitializer] Same affiliate_code already stored");
+      }
+    } catch (e) {
+      console.error("[AffiliateInitializer] storage error", e);
+    }
+
+    // 🔍 DEBUG: call the API and log **exact** response
+    (async () => {
+      try {
+        const res = await fetch("/api/affiliate/click", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            affiliate_code: refFromUrl,
+            source: "site_visit",
+          }),
+        });
+
+        let data: any = {};
+        try {
+          data = await res.json();
+        } catch {
+          // ignore JSON parse errors
         }
-      })
-      .catch((err) => console.error("Error logging affiliate click:", err));
-  }, []);
+
+        console.log(
+          "[AffiliateInitializer] /api/affiliate/click status:",
+          res.status,
+          "response:",
+          data
+        );
+      } catch (err) {
+        console.error("[AffiliateInitializer] fetch failed:", err);
+      }
+    })();
+  }, [searchParams]);
 
   return null;
 }
