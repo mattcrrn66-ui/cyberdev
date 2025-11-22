@@ -39,6 +39,43 @@ body {
   100% { background-position: 500px 500px; }
 }
 
+/* Typing Effect (Left Image) */
+@keyframes typing-effect {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(10px);
+  }
+}
+
+.animate-typing-effect {
+  animation: typing-effect 2s ease-in-out infinite;
+}
+
+/* Moving Effect (Right Image) */
+@keyframes move-image {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(10px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-move-image {
+  animation: move-image 3s ease-in-out infinite;
+}
+
 /* Optional: Customize some global Tailwind CSS defaults */
 html {
   scroll-behavior: smooth;
