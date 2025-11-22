@@ -36,39 +36,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="grid sm:grid-cols-2 gap-10 mt-10">
-          <div className="p-6 border border-slate-800 rounded-xl bg-slate-900/40">
-            <h2 className="text-xl font-bold text-cyan-300">Token Directory</h2>
-            <p className="mt-2 text-slate-400">
-              Explore tokens created through the Cyber Dev Hub and track active projects.
-            </p>
-            <Link
-              href="/directory"
-              className="inline-block mt-4 text-cyan-400 hover:underline"
-            >
-              View Directory →
-            </Link>
-          </div>
-
-          <div className="p-6 border border-slate-800 rounded-xl bg-slate-900/40">
-            <h2 className="text-xl font-bold text-cyan-300">Dev Hub</h2>
-            <p className="mt-2 text-slate-400">
-              Tools, uploads, utilities, and resources for builders launching on Solana.
-            </p>
-            <Link
-              href="/dev-hub"
-              className="inline-block mt-4 text-cyan-400 hover:underline"
-            >
-              Enter Dev Hub →
-            </Link>
-          </div>
-        </section>
-
         {/* Image Section: Left Image (1000028629.png) and Right Image (1000028693.jpg) */}
         <section className="flex flex-col md:flex-row gap-12 items-center mt-10">
-          {/* Left Image */}
-          <div className="relative animate-typing-effect">
+          {/* Left Image (Character Typing Effect) */}
+          <div className="relative animate-typing">
             <Image
               src="/1000028629.png" // Left image path in /public
               alt="Left Image"
@@ -76,9 +47,10 @@ export default function HomePage() {
               height={500}
               className="rounded-lg shadow-lg drop-shadow-[0_0_20px_rgba(0,200,255,0.6)]"
             />
+            <div className="absolute bottom-5 left-5 text-2xl text-slate-50 glow-text animate-typing-text">Typing...</div>
           </div>
 
-          {/* Right Image */}
+          {/* Right Image (Smooth Floating Effect) */}
           <div className="relative animate-move-image">
             <Image
               src="/1000028693.jpg" // Right image path in /public

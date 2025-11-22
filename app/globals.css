@@ -27,19 +27,23 @@ body {
   box-shadow: 0 0 10px rgba(0, 255, 255, 1), 0 0 15px rgba(0, 255, 255, 1);
 }
 
-/* Starry Background */
-.bg-starry-background {
-  background: url('https://cdn.pixabay.com/photo/2017/03/31/21/32/starry-sky-2190235_960_720.jpg') repeat center center;
-  background-size: cover;
-  animation: starry-background 200s linear infinite;
+/* Typing Effect (Text Animation) */
+@keyframes typing-text {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 10ch; /* Adjust based on the text length */
+  }
 }
 
-@keyframes starry-background {
-  0% { background-position: 0 0; }
-  100% { background-position: 500px 500px; }
+.animate-typing-text {
+  animation: typing-text 3s steps(10) 1s forwards;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-/* Typing Effect (Left Image) */
+/* Typing Effect for Left Image */
 @keyframes typing-effect {
   0% {
     opacity: 0;
@@ -55,20 +59,20 @@ body {
   }
 }
 
-.animate-typing-effect {
+.animate-typing {
   animation: typing-effect 2s ease-in-out infinite;
 }
 
-/* Moving Effect (Right Image) */
+/* Smooth Floating Effect for Right Image */
 @keyframes move-image {
   0% {
-    transform: translateX(0);
+    transform: translateY(0);
   }
   50% {
-    transform: translateX(10px);
+    transform: translateY(15px);
   }
   100% {
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
