@@ -2,7 +2,14 @@
 
 import { useState, useCallback } from "react";
 
-type SendResponse = any;
+type SendResponse = {
+  ok: boolean;
+  status: number;
+  contentType: string | null;
+  json: any;
+  text: string | null;
+};
+
 type ResultResponse = {
   ok: boolean;
   completed?: boolean;
@@ -81,15 +88,46 @@ export default function ComfyTesterPage() {
         `/api/affiliate/click/comfy?prompt=${encodeURIComponent(prompt)}`
       );
 
-      const data = await res.json();
-      setLastSend(data);
+      const contentType = res.headers.get("content-type");
+      const text = await res.text();
+      let parsed: any = null;
+
+      if (contentType && contentType.includes("application/json") && text) {
+        try {
+          parsed = JSON.parse(text);
+        } catch (e) {
+          console.warn("Failed to parse JSON from send endpoint:", e);
+        }
+      }
+
+      const debugPayload: SendResponse = {
+        ok: res.ok,
+        status: res.status,
+        contentType,
+        json: parsed,
+        text: text || null,
+      };
+
+      setLastSend(debugPayload);
+
+      if (!res.ok) {
+        setIsGenerating(false);
+        setError(
+          `Send endpoint failed with status ${res.status}${
+            text ? ` – ${text}` : ""
+          }`
+        );
+        return;
+      }
+
+      const data = parsed ?? debugPayload;
 
       const promptId =
         data?.json?.prompt_id || data?.prompt_id || data?.id || null;
 
       if (!promptId) {
         setIsGenerating(false);
-        setError("No prompt_id returned from send endpoint.");
+        setError("No prompt_id returned from send endpoint (check Last Send).");
         return;
       }
 
