@@ -214,16 +214,35 @@ export default function ComfyTesterPage() {
               {images.map((img) => (
                 <figure
                   key={img.filename + img.url}
-                  className="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden"
+                  className="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden flex flex-col"
                 >
                   <img
                     src={img.url}
                     alt={img.filename}
                     className="w-full h-64 object-cover"
                   />
-                  <figcaption className="px-3 py-2 text-[10px] text-slate-400 truncate">
+                  <figcaption className="px-3 py-2 text-[10px] text-slate-400 truncate border-t border-slate-800">
                     {img.filename}
                   </figcaption>
+
+                  {/* 💾 Controls row */}
+                  <div className="px-3 pb-3 pt-1 flex items-center justify-between gap-2 border-t border-slate-800/60">
+                    <a
+                      href={img.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                    >
+                      View full
+                    </a>
+                    <a
+                      href={img.url}
+                      download={img.filename || "cyberdev-image.png"}
+                      className="text-[11px] text-slate-200 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-lg border border-slate-700"
+                    >
+                      Download PNG
+                    </a>
+                  </div>
                 </figure>
               ))}
             </div>

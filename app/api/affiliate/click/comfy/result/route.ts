@@ -1,107 +1,71 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-function getComfyBaseFromEnv() {
-  const raw = (process.env.COMFY_URL ?? "").trim();
-  if (!raw) return null;
+const COMFY_URL = process.env.COMFY_URL;
 
-  // COMFY_URL is like: https://xxxx.ngrok-free.dev/prompt
-  // Strip the trailing /prompt so we can call /history/{id}.
-  return raw.replace(/\/prompt\/?$/i, "");
-}
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    if (!COMFY_URL) {
+      return NextResponse.json(
+        { ok: false, error: "COMFY_URL environment variable missing" },
+        { status: 500 }
+      );
+    }
+
     const url = new URL(req.url);
     const promptId = url.searchParams.get("promptId");
 
     if (!promptId) {
       return NextResponse.json(
-        { ok: false, error: "Missing promptId query param" },
+        { ok: false, error: "Missing promptId" },
         { status: 400 }
       );
     }
 
-    const comfyBase = getComfyBaseFromEnv();
-    if (!comfyBase) {
+    const historyUrl = `${COMFY_URL}/history/${encodeURIComponent(promptId)}`;
+    const historyRes = await fetch(historyUrl, { cache: "no-store" });
+
+    if (!historyRes.ok) {
       return NextResponse.json(
         {
           ok: false,
-          error: "COMFY_URL env var is missing or invalid on server",
+          error: "Failed to fetch Comfy history",
+          status: historyRes.status,
         },
         { status: 500 }
       );
     }
 
-    const historyUrl = `${comfyBase}/history/${encodeURIComponent(promptId)}`;
+    const history = await historyRes.json();
 
-    const comfyRes = await fetch(historyUrl, {
-      method: "GET",
-      cache: "no-store",
-    });
-
-    const text = await comfyRes.text();
-    let json: any = null;
-    try {
-      json = text ? JSON.parse(text) : null;
-    } catch {
-      // non-JSON response – just leave json = null
-    }
-
-    // Comfy returns 404 while history isn’t ready yet – treat as in-progress, NOT failure.
-    if (comfyRes.status === 404) {
+    if (!history || !history[promptId]) {
       return NextResponse.json(
-        {
-          ok: true,
-          status: 404,
-          completed: false,
-          images: [],
-          rawHistory: null,
-          message: "History not ready yet",
-        },
+        { ok: true, completed: false, images: [], rawHistory: null },
         { status: 200 }
       );
     }
 
-    if (!comfyRes.ok) {
+    const item = history[promptId];
+
+    if (!item.outputs) {
       return NextResponse.json(
-        {
-          ok: false,
-          status: comfyRes.status,
-          error: "Comfy history endpoint returned an error",
-          raw: text || null,
-        },
-        { status: comfyRes.status }
+        { ok: true, completed: false, images: [], rawHistory: item },
+        { status: 200 }
       );
     }
 
-    // 🔍 Comfy history shape is:
-    // {
-    //   "<prompt_id>": {
-    //     prompt: [...],
-    //     outputs: { "<nodeId>": { images: [...] } },
-    //     status: { completed: true, ... },
-    //     ...
-    //   }
-    // }
-    const keys = json ? Object.keys(json) : [];
-    const record = keys.length > 0 ? json[keys[0]] : null;
+    const outputObj = item.outputs;
+    let images: { filename: string; url: string }[] = [];
 
-    const statusCompleted = !!record?.status?.completed;
-    const outputs = (record?.outputs as any) || {};
+    for (const nodeId of Object.keys(outputObj)) {
+      const nodeOutput = outputObj[nodeId];
 
-    const images: { filename: string; url: string }[] = [];
+      if (!nodeOutput.images) continue;
 
-    for (const nodeId of Object.keys(outputs)) {
-      const out = outputs[nodeId];
-      const imgs = out?.images || [];
-      for (const img of imgs) {
+      for (const img of nodeOutput.images) {
         const filename = img.filename;
         const subfolder = img.subfolder ?? "";
         const type = img.type ?? "output";
 
-        if (!filename) continue;
-
-        // Route through our image proxy so browser never hits ngrok directly
         const url = `/api/affiliate/click/comfy/image?filename=${encodeURIComponent(
           filename
         )}&subfolder=${encodeURIComponent(
@@ -112,23 +76,16 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json(
-      {
-        ok: true,
-        status: comfyRes.status,
-        completed: statusCompleted,
-        images,
-        rawHistory: json,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      ok: true,
+      completed: true,
+      images,
+      rawHistory: item,
+    });
   } catch (err: any) {
-    console.error("Comfy result route fatal error:", err);
+    console.error("RESULT ROUTE ERROR:", err);
     return NextResponse.json(
-      {
-        ok: false,
-        error: err?.message ?? "Unknown error in result route",
-      },
+      { ok: false, error: err?.message ?? "Unknown error" },
       { status: 500 }
     );
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const COMFY_URL = process.env.COMFY_URL;
+const COMFY_URL = process.env.COMFY_URL || "http://127.0.0.1:8188";
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,11 +23,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const viewUrl = `${COMFY_URL}/view?filename=${encodeURIComponent(
-      filename
-    )}&subfolder=${encodeURIComponent(subfolder)}&type=${encodeURIComponent(
-      type
-    )}`;
+    const viewUrl =
+      `${COMFY_URL}/view` +
+      `?filename=${encodeURIComponent(filename)}` +
+      `&subfolder=${encodeURIComponent(subfolder)}` +
+      `&type=${encodeURIComponent(type)}`;
 
     const res = await fetch(viewUrl);
 
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(arrayBuffer, {
       status: 200,
       headers: {
-        "Content-Type": res.headers.get("Content-Type") || "image/png",
+        "Content-Type": res.headers.get("content-type") || "image/png",
         "Cache-Control": "no-store",
       },
     });
