@@ -26,8 +26,9 @@ export default function HomePage() {
             >
               🚀 Launch a Token Now
             </Link>
+            {/* Corrected the link here */}
             <Link
-              href="/comfy"  {/* Corrected the link here */}
+              href="/comfy"
               className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-cyan-500 text-slate-900 font-semibold text-lg hover:bg-cyan-400 transition"
             >
               🎨 Generate AI Images for Free
