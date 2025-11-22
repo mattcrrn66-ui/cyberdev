@@ -31,7 +31,7 @@ export default function ComfyTesterPage() {
 
   const pollForResult = useCallback(async (promptId: string) => {
     let tries = 0;
-    const maxTries = 40; // ~80 seconds at 2s interval
+    const maxTries = 40;
     const delay = 2000;
 
     async function loop() {
@@ -64,7 +64,6 @@ export default function ComfyTesterPage() {
           return;
         }
 
-        // Not done yet → poll again
         setTimeout(loop, delay);
       } catch (err: any) {
         console.error(err);
@@ -83,10 +82,13 @@ export default function ComfyTesterPage() {
       setImages([]);
       setLastResult(null);
 
-      // Use GET and pass the prompt as a query parameter
-      const res = await fetch(
-        `/api/affiliate/click/comfy?prompt=${encodeURIComponent(prompt)}`
-      );
+      const res = await fetch("/api/affiliate/click/comfy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ prompt })
+      });
 
       const contentType = res.headers.get("content-type");
       const text = await res.text();
@@ -96,7 +98,7 @@ export default function ComfyTesterPage() {
         try {
           parsed = JSON.parse(text);
         } catch (e) {
-          console.warn("Failed to parse JSON from send endpoint:", e);
+          console.warn("Failed JSON parse:", e);
         }
       }
 
@@ -105,18 +107,14 @@ export default function ComfyTesterPage() {
         status: res.status,
         contentType,
         json: parsed,
-        text: text || null,
+        text: text || null
       };
 
       setLastSend(debugPayload);
 
       if (!res.ok) {
         setIsGenerating(false);
-        setError(
-          `Send endpoint failed with status ${res.status}${
-            text ? ` – ${text}` : ""
-          }`
-        );
+        setError(`Send endpoint failed with status ${res.status}`);
         return;
       }
 
@@ -127,11 +125,10 @@ export default function ComfyTesterPage() {
 
       if (!promptId) {
         setIsGenerating(false);
-        setError("No prompt_id returned from send endpoint (check Last Send).");
+        setError("No prompt_id returned from send endpoint.");
         return;
       }
 
-      // Start polling for the result for this prompt
       await pollForResult(promptId);
     } catch (err: any) {
       console.error(err);
@@ -157,7 +154,6 @@ export default function ComfyTesterPage() {
           </p>
         </header>
 
-        {/* Prompt + button */}
         <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-4">
           <label className="block text-sm font-medium text-slate-200 mb-1">
             Prompt
@@ -190,7 +186,6 @@ export default function ComfyTesterPage() {
           )}
         </section>
 
-        {/* JSON panels */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col">
             <h2 className="text-xs font-semibold text-slate-300 mb-2">
@@ -215,7 +210,6 @@ export default function ComfyTesterPage() {
           </div>
         </section>
 
-        {/* Images */}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-200">
             Generated Images
