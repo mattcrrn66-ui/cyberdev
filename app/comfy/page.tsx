@@ -1,91 +1,36 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 
-type SendResponse = {
-  ok: boolean;
-  status: number;
-  contentType: string | null;
-  json: any;
-  text: string | null;
+type ImageInfo = {
+  filename: string;
+  url: string; // data:image/png;base64,... or a direct URL
 };
 
-type ResultResponse = {
+type ComfyApiResponse = {
   ok: boolean;
-  completed?: boolean;
-  images?: { filename: string; url: string }[];
-  rawHistory?: any;
+  image?: string; // base64 data URL from /api/comfy
+  filename?: string;
+  images?: ImageInfo[];
   error?: string;
+  detail?: string;
 };
 
 export default function ComfyTesterPage() {
-  // ✅ Neutral, professional default prompt
   const [prompt, setPrompt] = useState(
     "high quality cyberpunk banner for CyberDev"
   );
   const [isGenerating, setIsGenerating] = useState(false);
-  const [lastSend, setLastSend] = useState<SendResponse | null>(null);
-  const [lastResult, setLastResult] = useState<ResultResponse | null>(null);
-  const [images, setImages] = useState<{ filename: string; url: string }[]>([]);
+  const [images, setImages] = useState<ImageInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  const pretty = (value: any) =>
-    value ? JSON.stringify(value, null, 2) : "// No data yet";
-
-  const pollForResult = useCallback(async (promptId: string) => {
-    let tries = 0;
-    const maxTries = 40;
-    const delay = 2000;
-
-    async function loop() {
-      tries += 1;
-      try {
-        const res = await fetch(
-          `/api/affiliate/click/comfy/result?promptId=${encodeURIComponent(
-            promptId
-          )}`,
-          { cache: "no-store" }
-        );
-        const data: ResultResponse = await res.json();
-        setLastResult(data);
-
-        if (!data.ok) {
-          setError(data.error ?? "Result route returned an error");
-          setIsGenerating(false);
-          return;
-        }
-
-        if (data.completed && data.images && data.images.length > 0) {
-          setImages(data.images);
-          setIsGenerating(false);
-          return;
-        }
-
-        if (tries >= maxTries) {
-          setError("Timed out waiting for Comfy to finish.");
-          setIsGenerating(false);
-          return;
-        }
-
-        setTimeout(loop, delay);
-      } catch (err: any) {
-        console.error(err);
-        setError(err?.message ?? "Error polling for result");
-        setIsGenerating(false);
-      }
-    }
-
-    loop();
-  }, []);
 
   const handleGenerate = async () => {
     try {
       setIsGenerating(true);
       setError(null);
       setImages([]);
-      setLastResult(null);
 
-      const res = await fetch("/api/affiliate/click/comfy", {
+      const res = await fetch("/api/comfy", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,49 +38,36 @@ export default function ComfyTesterPage() {
         body: JSON.stringify({ prompt }),
       });
 
-      const contentType = res.headers.get("content-type");
-      const text = await res.text();
-      let parsed: any = null;
+      const data: ComfyApiResponse = await res.json();
 
-      if (contentType && contentType.includes("application/json") && text) {
-        try {
-          parsed = JSON.parse(text);
-        } catch (e) {
-          console.warn("Failed JSON parse:", e);
-        }
-      }
-
-      const debugPayload: SendResponse = {
-        ok: res.ok,
-        status: res.status,
-        contentType,
-        json: parsed,
-        text: text || null,
-      };
-
-      setLastSend(debugPayload);
-
-      if (!res.ok) {
-        setIsGenerating(false);
-        setError(`Send endpoint failed with status ${res.status}`);
+      if (!res.ok || !data.ok) {
+        console.error("Comfy API error:", data);
+        setError(data.error || `Generation failed (status ${res.status})`);
         return;
       }
 
-      const data = parsed ?? debugPayload;
-
-      const promptId =
-        data?.json?.prompt_id || data?.prompt_id || data?.id || null;
-
-      if (!promptId) {
-        setIsGenerating(false);
-        setError("No prompt_id returned from send endpoint.");
+      // Case 1: backend returns a single base64 image as `image`
+      if (data.image) {
+        setImages([
+          {
+            filename: data.filename || "generated.png",
+            url: data.image,
+          },
+        ]);
         return;
       }
 
-      await pollForResult(promptId);
+      // Case 2: backend returns an array of images
+      if (data.images && data.images.length > 0) {
+        setImages(data.images);
+        return;
+      }
+
+      setError("No image returned from API.");
     } catch (err: any) {
       console.error(err);
       setError(err?.message ?? "Error sending prompt");
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -145,15 +77,12 @@ export default function ComfyTesterPage() {
       <div className="w-full max-w-5xl space-y-8">
         <header className="space-y-1">
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-400">
-            Cyber Dev → ComfyUI Tester
+            Cyber Dev → ComfyUI Generator
           </p>
-          <h1 className="text-3xl md:text-4xl font-semibold">
-            ComfyUI Tester
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-semibold">ComfyUI Live Generator</h1>
           <p className="text-sm text-slate-400 max-w-xl">
-            Send a prompt to the Comfy proxy in production and auto-poll
-            for the result. When the job finishes, any generated images
-            will appear below.
+            Send a prompt from CyberDev to your local ComfyUI (through ngrok),
+            then display the generated image directly on this page.
           </p>
         </header>
 
@@ -177,7 +106,7 @@ export default function ComfyTesterPage() {
             </button>
             {isGenerating && (
               <span className="text-xs text-slate-400">
-                Waiting for Comfy… polling result endpoint.
+                Talking to Comfy through ngrok… this can take a few seconds.
               </span>
             )}
           </div>
@@ -187,37 +116,14 @@ export default function ComfyTesterPage() {
           )}
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col">
-            <h2 className="text-xs font-semibold text-slate-300 mb-2">
-              Last Send →{" "}
-              <span className="text-cyan-400">/api/affiliate/click/comfy</span>
-            </h2>
-            <pre className="flex-1 text-[11px] md:text-xs bg-slate-950 rounded-xl p-3 overflow-auto">
-              {pretty(lastSend)}
-            </pre>
-          </div>
-
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col">
-            <h2 className="text-xs font-semibold text-slate-300 mb-2">
-              Last Result →{" "}
-              <span className="text-cyan-400">
-                /api/affiliate/click/comfy/result
-              </span>
-            </h2>
-            <pre className="flex-1 text-[11px] md:text-xs bg-slate-950 rounded-xl p-3 overflow-auto">
-              {pretty(lastResult)}
-            </pre>
-          </div>
-        </section>
-
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-200">
             Generated Images
           </h2>
-          {images.length === 0 && (
+          {images.length === 0 && !isGenerating && !error && (
             <p className="text-xs text-slate-500">
-              No images yet. Run a prompt and wait for Comfy to finish.
+              No images yet. Enter a prompt and hit{" "}
+              <span className="text-cyan-400 font-medium">Generate via Comfy</span>.
             </p>
           )}
 
@@ -225,7 +131,7 @@ export default function ComfyTesterPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {images.map((img) => (
                 <figure
-                  key={img.filename}
+                  key={img.filename + img.url}
                   className="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden"
                 >
                   <img
