@@ -231,6 +231,7 @@ export default function BuildPage() {
             >
               ← Back to Watchboard
             </Link>
+
             <Link
               href="/launch"
               style={{
@@ -246,6 +247,27 @@ export default function BuildPage() {
               }}
             >
               Launch Panel (coming soon)
+            </Link>
+
+            {/* 🔥 NEW CTA: Create AI Images Free */}
+            <Link
+              href="/comfy"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                borderRadius: 999,
+                border: "1px solid rgba(56,189,248,0.7)",
+                padding: "6px 14px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#67e8f9",
+                textDecoration: "none",
+                background:
+                  "linear-gradient(135deg, rgba(56,189,248,0.15), rgba(56,189,248,0.05))",
+                boxShadow: "0 0 18px rgba(56,189,248,0.15)",
+              }}
+            >
+              Create AI Images Free
             </Link>
           </div>
         </header>
@@ -354,9 +376,7 @@ export default function BuildPage() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) =>
-                    setImageFile(e.target.files?.[0] ?? null)
-                  }
+                  onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
                   style={{ color: "#e5e7eb", fontSize: 12 }}
                 />
               </div>

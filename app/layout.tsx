@@ -59,6 +59,10 @@ export default function RootLayout({
                 <a href="/dashboard/affiliate" className="hover:text-cyan-300">
                   Affiliate
                 </a>
+                {/* 🧠 New: Image Lab / Comfy entry */}
+                <a href="/comfy" className="hover:text-cyan-300">
+                  Image Lab
+                </a>
               </nav>
             </div>
           </header>
