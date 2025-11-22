@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function HomePage() {
   return (
@@ -21,19 +22,33 @@ export default function HomePage() {
           </p>
 
           {/* Primary CTA Buttons */}
-          <div className="mt-6 space-x-4">
-            <Link
-              href="/meme-launchpad"
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-cyan-500 text-slate-900 font-semibold text-lg hover:bg-cyan-400 transition glow-button"
-            >
-              🚀 Launch a Token Now
-            </Link>
-            <Link
-              href="/comfy"
-              className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-cyan-500 text-slate-900 font-semibold text-lg hover:bg-cyan-400 transition glow-button"
-            >
-              🎨 Generate AI Images for Free
-            </Link>
+          <div className="mt-6 space-x-4 flex justify-center items-center gap-8">
+            {/* CyberDev Mascot Image on the Left */}
+            <div className="relative w-32 h-32 md:w-40 md:h-40">
+              <Image
+                src="/1000028629.png" // Path to the uploaded character image in the public folder
+                alt="CyberDev Character"
+                layout="fill"
+                objectFit="contain"
+                className="drop-shadow-[0_0_20px_rgba(0,200,255,0.35)]"
+              />
+            </div>
+
+            {/* Launch and AI Generate Buttons */}
+            <div className="flex flex-col gap-4">
+              <Link
+                href="/meme-launchpad"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-cyan-500 text-slate-900 font-semibold text-lg hover:bg-cyan-400 transition glow-button"
+              >
+                🚀 Launch a Token Now
+              </Link>
+              <Link
+                href="/comfy"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-cyan-500 text-slate-900 font-semibold text-lg hover:bg-cyan-400 transition glow-button"
+              >
+                🎨 Generate AI Images for Free
+              </Link>
+            </div>
           </div>
         </section>
 
