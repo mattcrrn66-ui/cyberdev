@@ -21,19 +21,8 @@ export default function HomePage() {
             Create tokens, build communities, and launch your ideas into reality.
           </p>
 
-          {/* Flexbox container for image and button */}
+          {/* Flexbox container for button and image */}
           <div className="mt-6 flex justify-center items-center gap-6">
-            {/* Image on the left */}
-            <div className="flex-shrink-0">
-              <Image
-                src="/cyberdev-character.png"  // Ensure the path is correct
-                alt="Cyber Dev Character"
-                width={200}  // Adjust size as needed
-                height={200} // Adjust size as needed
-                className="rounded-full shadow-lg"
-              />
-            </div>
-
             {/* Button */}
             <div className="flex flex-col items-center justify-center gap-4">
               <Link
@@ -48,6 +37,17 @@ export default function HomePage() {
               >
                 🎨 Generate AI Images for Free
               </Link>
+            </div>
+
+            {/* Image on the right */}
+            <div className="flex-shrink-0">
+              <Image
+                src="/cyberdev-character.png"  // Ensure the path is correct
+                alt="Cyber Dev Character"
+                width={200}  // Adjust size as needed
+                height={200} // Adjust size as needed
+                className="rounded-full shadow-lg"
+              />
             </div>
           </div>
         </section>
