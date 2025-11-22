@@ -19,7 +19,10 @@ type ResultResponse = {
 };
 
 export default function ComfyTesterPage() {
-  const [prompt, setPrompt] = useState("girl on couch");
+  // ✅ Neutral, professional default prompt
+  const [prompt, setPrompt] = useState(
+    "high quality cyberpunk banner for CyberDev"
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastSend, setLastSend] = useState<SendResponse | null>(null);
   const [lastResult, setLastResult] = useState<ResultResponse | null>(null);
@@ -85,9 +88,9 @@ export default function ComfyTesterPage() {
       const res = await fetch("/api/affiliate/click/comfy", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt }),
       });
 
       const contentType = res.headers.get("content-type");
@@ -107,7 +110,7 @@ export default function ComfyTesterPage() {
         status: res.status,
         contentType,
         json: parsed,
-        text: text || null
+        text: text || null,
       };
 
       setLastSend(debugPayload);
@@ -180,9 +183,7 @@ export default function ComfyTesterPage() {
           </div>
 
           {error && (
-            <p className="text-xs text-rose-400 mt-2">
-              Error: {error}
-            </p>
+            <p className="text-xs text-rose-400 mt-2">Error: {error}</p>
           )}
         </section>
 
