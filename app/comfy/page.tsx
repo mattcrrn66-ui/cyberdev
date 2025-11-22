@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 type ImageInfo = {
   filename: string;
-  url: string; // data:image/png;base64,... or a direct URL
+  url: string; // proxied URL from /api/affiliate/click/comfy/image
 };
 
-type ComfyApiResponse = {
+type ComfySendResponse = {
   ok: boolean;
-  image?: string; // base64 data URL from API
-  filename?: string;
-  images?: ImageInfo[];
+  prompt_id?: string;
+  raw?: any;
   error?: string;
-  detail?: string;
+};
+
+type ResultResponse = {
+  ok: boolean;
+  completed?: boolean;
+  images?: ImageInfo[];
+  rawHistory?: any;
+  error?: string;
 };
 
 export default function ComfyTesterPage() {
@@ -24,13 +30,76 @@ export default function ComfyTesterPage() {
   const [images, setImages] = useState<ImageInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Poll /api/affiliate/click/comfy/result until images are ready
+  const pollForResult = useCallback((promptId: string) => {
+    let tries = 0;
+    const maxTries = 40; // ~80 seconds total if delay=2000
+    const delay = 2000;
+
+    const loop = async () => {
+      tries += 1;
+      try {
+        const res = await fetch(
+          `/api/affiliate/click/comfy/result?promptId=${encodeURIComponent(
+            promptId
+          )}`,
+          { cache: "no-store" }
+        );
+
+        const text = await res.text();
+        let data: ResultResponse | null = null;
+
+        try {
+          data = text ? (JSON.parse(text) as ResultResponse) : null;
+        } catch (e) {
+          console.error("Non-JSON result response:", text);
+          setError("Invalid result response from server.");
+          setIsGenerating(false);
+          return;
+        }
+
+        if (!data) {
+          setError("Empty result response from server.");
+          setIsGenerating(false);
+          return;
+        }
+
+        if (!data.ok) {
+          setError(data.error || "Result route returned an error.");
+          setIsGenerating(false);
+          return;
+        }
+
+        if (data.completed && data.images && data.images.length > 0) {
+          setImages(data.images);
+          setIsGenerating(false);
+          return;
+        }
+
+        if (tries >= maxTries) {
+          setError("Timed out waiting for Comfy to finish.");
+          setIsGenerating(false);
+          return;
+        }
+
+        // Not done yet → poll again
+        setTimeout(loop, delay);
+      } catch (err: any) {
+        console.error("Error polling result:", err);
+        setError(err?.message ?? "Error polling for result");
+        setIsGenerating(false);
+      }
+    };
+
+    loop();
+  }, []);
+
   const handleGenerate = async () => {
     try {
       setIsGenerating(true);
       setError(null);
       setImages([]);
 
-      // 🔥 use the real API route
       const res = await fetch("/api/affiliate/click/comfy", {
         method: "POST",
         headers: {
@@ -39,51 +108,43 @@ export default function ComfyTesterPage() {
         body: JSON.stringify({ prompt }),
       });
 
-      // safer: read text, then try to parse JSON
       const text = await res.text();
-      let data: ComfyApiResponse | null = null;
+      let data: ComfySendResponse | null = null;
 
       try {
-        data = text ? (JSON.parse(text) as ComfyApiResponse) : null;
+        data = text ? (JSON.parse(text) as ComfySendResponse) : null;
       } catch (e) {
-        console.error("Non-JSON response from Comfy API:", text);
+        console.error("Non-JSON send response:", text);
         setError("Server returned an invalid response. Check logs.");
+        setIsGenerating(false);
         return;
       }
 
       if (!data) {
         setError("Empty response from server.");
+        setIsGenerating(false);
         return;
       }
 
       if (!res.ok || !data.ok) {
-        console.error("Comfy API error:", data);
+        console.error("Comfy send API error:", data);
         setError(data.error || `Generation failed (status ${res.status})`);
+        setIsGenerating(false);
         return;
       }
 
-      // Case 1: backend returns a single base64 image as `image`
-      if (data.image) {
-        setImages([
-          {
-            filename: data.filename || "generated.png",
-            url: data.image,
-          },
-        ]);
+      const promptId = data.prompt_id;
+      if (!promptId) {
+        setError("No prompt_id returned from Comfy send endpoint.");
+        setIsGenerating(false);
         return;
       }
 
-      // Case 2: backend returns an array of images
-      if (data.images && data.images.length > 0) {
-        setImages(data.images);
-        return;
-      }
-
-      setError("No image returned from API.");
+      // 🔁 Start polling result endpoint
+      pollForResult(promptId);
     } catch (err: any) {
       console.error(err);
       setError(err?.message ?? "Error sending prompt");
-    } finally {
       setIsGenerating(false);
     }
   };
@@ -124,7 +185,7 @@ export default function ComfyTesterPage() {
             </button>
             {isGenerating && (
               <span className="text-xs text-slate-400">
-                Talking to Comfy through ngrok… this can take a few seconds.
+                Talking to Comfy through ngrok… polling for result.
               </span>
             )}
           </div>
