@@ -75,7 +75,7 @@ export default function HomePage() {
           </p>
           <div className="text-center mt-6">
             <Link
-              href="/comfy"  {/* Corrected the link here */}
+              href="/comfy"
               className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-cyan-500 text-slate-900 font-semibold text-lg hover:bg-cyan-400 transition"
             >
               Start Generating AI Images
